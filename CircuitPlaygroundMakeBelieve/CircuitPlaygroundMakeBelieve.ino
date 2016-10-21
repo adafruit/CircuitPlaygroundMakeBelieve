@@ -31,7 +31,7 @@ boolean           pixelLoop,     // If true, animation repeats
                   audioLoop;     // If true, audio repeats
 
 // Begin playing a sound from PROGMEM table (unless NULL)
-void playSound(uint8_t *addr, uint16_t rate, uint16_t len, boolean repeat) {
+void playSound(const uint8_t *addr, uint16_t rate, uint16_t len, boolean repeat) {
   if(addr) {
     CircuitPlayground.speaker.begin();
     audioBaseAddr = addr;
@@ -70,7 +70,7 @@ void stopSound() {
 }
 
 // Begin playing a NeoPixel animation from a PROGMEM table
-void playAnim(uint16_t addr, uint8_t fps, uint16_t bytes, boolean repeat) {
+void playAnim(const uint16_t *addr, uint8_t fps, uint16_t bytes, boolean repeat) {
   pixelBaseAddr = addr;
   pixelFPS      = fps;
   pixelLen      = bytes / 2;
