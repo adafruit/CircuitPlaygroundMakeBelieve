@@ -13,9 +13,10 @@ void setup() {
   CircuitPlayground.begin();
   CircuitPlayground.setAccelRange(LIS3DH_RANGE_16_G);
   CircuitPlayground.strip.setBrightness(255); // Full brightness
+  CircuitPlayground.strip.clear();
 
   // Start default "idle" looping animation and sound
-  playAnim(idlePixelData, idleFPS, sizeof(idlePixelData), true);
+  playAnim( idlePixelData, idleFPS       , sizeof(idlePixelData), true);
   playSound(idleAudioData, idleSampleRate, sizeof(idleAudioData), true);
 }
 
@@ -32,12 +33,12 @@ boolean           pixelLoop,     // If true, animation repeats
 
 // Begin playing a sound from PROGMEM table (unless NULL)
 void playSound(const uint8_t *addr, uint16_t rate, uint16_t len, boolean repeat) {
+  audioBaseAddr = addr;
   if(addr) {
     CircuitPlayground.speaker.begin();
-    audioBaseAddr = addr;
-    audioLen      = len;
-    audioLoop     = repeat;
-    audioIdx      = 0;
+    audioLen  = len;
+    audioLoop = repeat;
+    audioIdx  = 0;
   
     // Timer/Counter 1 interrupt is used to play sound in background
     TCCR1A = 0;                           // Timer1: No PWM output
@@ -65,17 +66,22 @@ ISR(TIMER1_COMPA_vect) {
 }
 
 void stopSound() {
-  TIMSK1 = 0; // Stop interrupt
+  TIMSK1        = 0; // Stop interrupt
+  audioBaseAddr = NULL;
   CircuitPlayground.speaker.end();
 }
 
 // Begin playing a NeoPixel animation from a PROGMEM table
 void playAnim(const uint16_t *addr, uint8_t fps, uint16_t bytes, boolean repeat) {
   pixelBaseAddr = addr;
-  pixelFPS      = fps;
-  pixelLen      = bytes / 2;
-  pixelLoop     = repeat;
-  pixelIdx      = 0;
+  if(addr) {
+    pixelFPS      = fps;
+    pixelLen      = bytes / 2;
+    pixelLoop     = repeat;
+    pixelIdx      = 0;
+  } else {
+    CircuitPlayground.strip.clear();
+  }
 }
 
 uint32_t prev = 0; // Time of last NeoPixel refresh
@@ -110,22 +116,24 @@ void loop() {
   CircuitPlayground.strip.show();
   prev = t; // Save refresh time for next frame sync
 
-  for(uint8_t i=0; i<10; i++) { // For each NeoPixel...
-    // Read pixel color from PROGMEM table
-    uint16_t rgb = pgm_read_word(&pixelBaseAddr[pixelIdx++]);
-    // Expand 16-bit color to 24 bits using gamma tables
-    // RRRRRGGGGGGBBBBB -> RRRRRRRR GGGGGGGG BBBBBBBB
-    CircuitPlayground.strip.setPixelColor(i,
-      pgm_read_byte(&gamma5[ rgb >> 11        ]),
-      pgm_read_byte(&gamma6[(rgb >>  5) & 0x3F]),
-      pgm_read_byte(&gamma5[ rgb        & 0x1F]));
-  }
-
-  if(pixelIdx >= pixelLen) { // End of animation table reached?
-    if(pixelLoop) { // Repeat animation?
-      pixelIdx = 0; // Reset index to start of table
-    } else {        // else switch back to "idle" animation
-      playAnim(idlePixelData, idleFPS, sizeof(idlePixelData), true);
+  if(pixelBaseAddr) {
+    for(uint8_t i=0; i<10; i++) { // For each NeoPixel...
+      // Read pixel color from PROGMEM table
+      uint16_t rgb = pgm_read_word(&pixelBaseAddr[pixelIdx++]);
+      // Expand 16-bit color to 24 bits using gamma tables
+      // RRRRRGGGGGGBBBBB -> RRRRRRRR GGGGGGGG BBBBBBBB
+      CircuitPlayground.strip.setPixelColor(i,
+        pgm_read_byte(&gamma5[ rgb >> 11        ]),
+        pgm_read_byte(&gamma6[(rgb >>  5) & 0x3F]),
+        pgm_read_byte(&gamma5[ rgb        & 0x1F]));
+    }
+  
+    if(pixelIdx >= pixelLen) { // End of animation table reached?
+      if(pixelLoop) { // Repeat animation?
+        pixelIdx = 0; // Reset index to start of table
+      } else {        // else switch back to "idle" animation
+        playAnim(idlePixelData, idleFPS, sizeof(idlePixelData), true);
+      }
     }
   }
 }
