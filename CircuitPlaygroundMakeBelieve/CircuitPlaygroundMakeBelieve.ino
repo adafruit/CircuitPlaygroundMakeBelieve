@@ -13,7 +13,6 @@ void setup() {
   CircuitPlayground.begin();
   CircuitPlayground.setAccelRange(LIS3DH_RANGE_16_G);
   CircuitPlayground.strip.setBrightness(255); // Full brightness
-  CircuitPlayground.strip.clear();
 
   // Start default "idle" looping animation and sound
   playAnim( idlePixelData, idleFPS       , sizeof(idlePixelData), true);
@@ -46,6 +45,13 @@ void playSound(const uint8_t *addr, uint16_t rate, uint16_t len, boolean repeat)
     OCR1A  = (F_CPU + (rate / 2)) / rate; // Value for timer match
     TCNT1  = 0;                           // Reset counter
     TIMSK1 = _BV(OCIE1A);                 // Start interrupt
+  } else {         // NULL addr = audio OFF
+    TIMSK1 = 0;    // Stop interrupt
+    while(OCR4A) { // Ease speaker into off position
+      OCR4A--;     // to avoid audible 'pop' at end
+      delayMicroseconds(3);
+    }
+    CircuitPlayground.speaker.end();
   }
 }
 
@@ -56,29 +62,19 @@ ISR(TIMER1_COMPA_vect) {
     if(audioLoop) {       // Loop sound?
       audioIdx = 0;       // Reset counter to start of table
     } else {              // Don't loop...
-      if(idleAudioData) { // Revert to 'idle' sound if set
-        playSound(idleAudioData, idleSampleRate, sizeof(idleAudioData), true);
-      } else {            // No idle audio data; switch speaker off
-        stopSound();
-      }
+      playSound(idleAudioData, idleSampleRate, sizeof(idleAudioData), true);
     }
   }
-}
-
-void stopSound() {
-  TIMSK1        = 0; // Stop interrupt
-  audioBaseAddr = NULL;
-  CircuitPlayground.speaker.end();
 }
 
 // Begin playing a NeoPixel animation from a PROGMEM table
 void playAnim(const uint16_t *addr, uint8_t fps, uint16_t bytes, boolean repeat) {
   pixelBaseAddr = addr;
   if(addr) {
-    pixelFPS      = fps;
-    pixelLen      = bytes / 2;
-    pixelLoop     = repeat;
-    pixelIdx      = 0;
+    pixelFPS    = fps;
+    pixelLen    = bytes / 2;
+    pixelLoop   = repeat;
+    pixelIdx    = 0;
   } else {
     CircuitPlayground.strip.clear();
   }
