@@ -50,10 +50,9 @@ gammaFlag  = 0 # Set to '1' on image load; gamma tables should be printed
 def convertImage(filename):
 	global gammaFlag
 	try:
+		# Image height should match NeoPixel strip length,
+		# no conversion or runtime checks are performed.
 		im       = Image.open(filename)
-		# IMAGE MUST BE 10 PIXELS TALL TO
-		# MATCH CIRCUIT PLAYGROUND NEOPIXELS
-		assert im.size[1] == 10
 		im       = im.convert("RGB")
 		pixels   = im.load()
 		numWords = im.size[0] * im.size[1]
